@@ -19,24 +19,30 @@ def _fallback_reasoning(symbol: str, consensus: ConsensusResult, votes: list[Age
     )
 
 
-def build_consensus_reasoning(symbol: str, consensus: ConsensusResult, votes: list[AgentVote]) -> str:
+def build_consensus_reasoning(symbol: str, consensus: ConsensusResult, votes: list[AgentVote], history_note: str = "") -> str:
     llm = get_llm_client()
     fallback = _fallback_reasoning(symbol, consensus, votes)
 
     votes_digest = "\n".join(f"- {v.agent_name} ({v.agent_type}): {v.action} @ {v.confidence:.2f} confidence — {v.reasoning}" for v in votes)
     weights_digest = "\n".join(f"- {d['agent_name']}: trust-weight {d['weight']:.3f} (trust={d['trust_score']}, relevance={d['expertise_relevance']}, agreement_adj={d['agreement_adjustment']})" for d in consensus.agent_details)
 
+    user_prompt = (
+        f"Symbol: {symbol}\nFinal verdict: {consensus.verdict} ({consensus.directional_confidence:.1f}% directional confidence)\n\n"
+        f"Agent votes:\n{votes_digest}\n\nTrust-weighted influence:\n{weights_digest}"
+    )
+    if history_note:
+        user_prompt += f"\n\n{history_note}"
+
     reasoning = llm.chat(
         system=(
             "You are the Report Generation Agent for an autonomous trading committee. Write a concise (3-5 sentence) "
             "explanation of why the committee reached this verdict. Explain the directional confidence score in terms "
             "of which agents drove it and why (their trust/expertise weighting, and whether they agreed or "
-            "contrarily diverged from the room). Do not just restate the vote list - synthesize the reasoning."
+            "contrarily diverged from the room). Do not just restate the vote list - synthesize the reasoning. If "
+            "past committee decisions for this symbol are provided, explicitly reference what happened last time "
+            "a similar call was made."
         ),
-        user=(
-            f"Symbol: {symbol}\nFinal verdict: {consensus.verdict} ({consensus.directional_confidence:.1f}% directional confidence)\n\n"
-            f"Agent votes:\n{votes_digest}\n\nTrust-weighted influence:\n{weights_digest}"
-        ),
+        user=user_prompt,
         max_tokens=400,
         fallback=fallback,
     )

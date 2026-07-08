@@ -13,7 +13,7 @@ low-confidence when the strongest bull and bear cases are evenly matched.
 
 from __future__ import annotations
 
-from app.agents.base import AgentVote, AnalysisContext, BaseAgent
+from app.agents.base import AgentVote, AnalysisContext, BaseAgent, historical_context_summary
 from app.llm.client import get_llm_client
 
 
@@ -49,25 +49,32 @@ class DebateAgent(BaseAgent):
         else:
             contention = f"No material dissent this tick - all analyst signal weight is concentrated on {winning_action}."
 
+        history_note = historical_context_summary(ctx)
+        user_prompt = f"Symbol {ctx.symbol}. {contention}"
+        if history_note:
+            user_prompt += f"\n\n{history_note}"
+
         llm = get_llm_client()
         reasoning = llm.chat(
             system=(
                 "You are the Debate Agent on an investment committee. Given the strongest bull case and the "
                 "strongest counter-case among the analysts, write a short (3-4 sentence) dialectic: state each "
                 "side fairly, then say plainly how contested the picture is and why. Do not declare a winner - "
-                "that is the consensus engine's job, not yours."
+                "that is the consensus engine's job, not yours. If past committee decisions for this symbol are "
+                "provided, weigh them - a pattern of similar setups losing money is itself evidence worth naming."
             ),
-            user=f"Symbol {ctx.symbol}. {contention}",
+            user=user_prompt,
             fallback=contention,
         )
 
+        evidence = [contention] + ([history_note] if history_note else [])
         return AgentVote(
             agent_name=self.name,
             agent_type=self.agent_type,
             action=winning_action,
             confidence=confidence,
             reasoning=reasoning,
-            evidence=[contention],
+            evidence=evidence,
             metrics={
                 "contest_ratio": round(contest_ratio, 3),
                 "winning_action": winning_action,

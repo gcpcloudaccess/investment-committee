@@ -10,7 +10,9 @@ from app.agents.analysts.policy import PolicyAnalyst
 from app.agents.analysts.risk import RiskAnalyst
 from app.agents.analysts.sentiment import SentimentAnalyst
 from app.agents.analysts.technical import TechnicalAnalyst
-from app.agents.base import AgentVote, AnalysisContext, prior_stage_summary
+import datetime as dt
+
+from app.agents.base import AgentVote, AnalysisContext, historical_context_summary, prior_stage_summary
 
 
 def test_tiers_partition_all_analysts_with_no_overlap():
@@ -41,3 +43,20 @@ def test_prior_stage_summary_includes_each_prior_vote():
     assert "BUY" in summary
     assert "Sentiment Analyst" in summary
     assert "SELL" in summary
+
+
+def test_historical_context_summary_empty_when_no_history():
+    ctx = AnalysisContext(symbol="TCS.NS", bars=None, fundamentals={}, symbol_news=[], market_news=[])
+    assert historical_context_summary(ctx) == ""
+
+
+def test_historical_context_summary_includes_verdict_and_outcome():
+    history = [
+        {"timestamp": dt.datetime(2026, 7, 5, 11, 20, tzinfo=dt.timezone.utc), "verdict": "BUY", "confidence": 32.0, "reasoning_snippet": "strong RSI momentum", "outcome": "closed +Rs340.00"},
+    ]
+    ctx = AnalysisContext(symbol="RELIANCE.NS", bars=None, fundamentals={}, symbol_news=[], market_news=[], historical_context=history)
+    summary = historical_context_summary(ctx)
+    assert "RELIANCE.NS" in summary
+    assert "BUY" in summary
+    assert "closed +Rs340.00" in summary
+    assert "strong RSI momentum" in summary

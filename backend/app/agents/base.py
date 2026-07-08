@@ -22,6 +22,7 @@ class AnalysisContext:
     benchmark_bars: pd.DataFrame | None = None  # benchmark (Nifty 50) daily OHLCV history (~6mo)
     open_positions: list[dict] = field(default_factory=list)  # [{symbol, weight, sector}]
     prior_stage_votes: list["AgentVote"] = field(default_factory=list)  # votes from earlier tiers in the staged pipeline
+    historical_context: list[dict] = field(default_factory=list)  # retrieved past Decision rows for this symbol, see app/memory/retrieval.py
 
 
 class AgentVote(BaseModel):
@@ -73,3 +74,19 @@ def prior_stage_summary(ctx: AnalysisContext) -> str:
         return ""
     lines = [f"- {v.agent_name}: {v.action} (confidence {v.confidence:.2f})" for v in ctx.prior_stage_votes]
     return "Earlier-stage committee context so far:\n" + "\n".join(lines)
+
+
+def historical_context_summary(ctx: AnalysisContext) -> str:
+    """One-line-per-decision digest of this symbol's retrieved past committee
+    decisions (app/memory/retrieval.py), for the Debate Agent and Report
+    Generation Agent to reference - the retrieval-augmented "reinforcement"
+    behavior: what happened last time reasoning feeds into this time's
+    reasoning - empty string when there's no history yet for this symbol."""
+    if not ctx.historical_context:
+        return ""
+    lines = [
+        f"- {h['timestamp']:%Y-%m-%d %H:%M}: {h['verdict']} ({h['confidence']:.0f}% confidence) "
+        f'- "{h["reasoning_snippet"]}" -> {h["outcome"]}'
+        for h in ctx.historical_context
+    ]
+    return f"Past committee decisions for {ctx.symbol}:\n" + "\n".join(lines)

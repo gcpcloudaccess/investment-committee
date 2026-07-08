@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/risk_critic.schema.json",
+  "title": "RiskCriticOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "agent",
+    "decision",
+    "risk_confidence_score",
+    "evidence_quality_score",
+    "overall_risk_rating",
+    "summary",
+    "top_risks",
+    "scenario_analysis",
+    "portfolio_impact",
+    "consensus_risk",
+    "required_controls",
+    "missing_information",
+    "monitoring_triggers",
+    "human_review_required",
+    "final_risk_note"
+  ],
+  "properties": {
+    "agent": {
+      "const": "risk_critic"
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "approve_with_controls",
+        "reduce_size",
+        "delay_for_confirmation",
+        "hedge_required",
+        "reject",
+        "insufficient_data"
+      ]
+    },
+    "risk_confidence_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "evidence_quality_score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "overall_risk_rating": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "top_risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["risk", "severity", "mechanism", "mitigation"],
+        "properties": {
+          "risk": {"type": "string"},
+          "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+          "probability": {"type": "string"},
+          "mechanism": {"type": "string"},
+          "evidence": {"type": "string"},
+          "mitigation": {"type": "string"}
+        }
+      }
+    },
+    "scenario_analysis": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["scenario", "trigger", "expected_impact", "approximate_loss_or_drawdown", "mitigation"],
+        "properties": {
+          "scenario": {"type": "string"},
+          "trigger": {"type": "string"},
+          "expected_impact": {"type": "string"},
+          "approximate_loss_or_drawdown": {"type": "string"},
+          "mitigation": {"type": "string"}
+        }
+      }
+    },
+    "portfolio_impact": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "consensus_risk": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "required_controls": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "missing_information": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "monitoring_triggers": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "human_review_required": {
+      "type": "boolean"
+    },
+    "final_risk_note": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

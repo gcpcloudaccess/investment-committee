@@ -5,22 +5,50 @@ for on-demand "Stock Search" analysis (execute=False previews without trading)."
 
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy.orm import Session
 
-from app.agents.base import AnalysisContext
+from app.agents.base import AnalysisContext, historical_context_summary
 from app.agents.debate_loop import run_debate
 from app.consensus import reliability_tracker
-from app.consensus.trust_weighted_consensus import compute_consensus
+from app.consensus.trust_weighted_consensus import ConsensusResult, compute_consensus
 from app.data import fundamentals as fundamentals_data
 from app.data import news_data
 from app.data.market_data import MarketDataProvider
 from app.db.models import AgentVote as AgentVoteRow
 from app.db.models import Decision, Position
+from app.memory import retrieval
 from app.portfolio import portfolio_manager, position_sizing, scenario_analysis
 from app.reporting import alert_agent, audit_log, report_agent
 from app.trading import execution_engine
 
+logger = logging.getLogger("supervisor")
+
 BENCHMARK_SYMBOL = "^NSEI"  # Nifty 50 - used by the Risk Assessment Analyst for beta/correlation/regime risk
+
+
+def _print_decision_reasoning(symbol: str, consensus: ConsensusResult, reasoning_text: str, execution_result: dict) -> None:
+    """Prints the full explainable reasoning for every decision (trade or
+    no-trade) to the backend console/log the moment it's finalized - the
+    "explainable reasoning per trade" requirement, visible live during a
+    session rather than only retrievable after the fact via the API/PDF."""
+    lines = [
+        f"================ COMMITTEE DECISION: {symbol} ================",
+        f"Verdict: {consensus.verdict} | Directional confidence: {consensus.directional_confidence:.1f}% | Executed: {bool(execution_result.get('executed'))}",
+        f"Reasoning: {reasoning_text}",
+    ]
+    if execution_result.get("executed"):
+        sizing = execution_result.get("sizing") or {}
+        action = execution_result.get("action", "TRADE")
+        lines.append(
+            f"Trade: {action} qty={sizing.get('quantity')} notional=Rs{sizing.get('notional')} "
+            f"leverage={sizing.get('leverage_used')} margin=Rs{sizing.get('margin_used_inr')}"
+        )
+    elif execution_result.get("reason"):
+        lines.append(f"No trade: {execution_result['reason']}")
+    lines.append("=" * 65)
+    logger.info("\n".join(lines))
 
 
 def _current_open_positions(db: Session, symbol: str, sector: str | None) -> list[dict]:
@@ -61,6 +89,7 @@ def run_committee_for_symbol(
     symbol_news = news_data.fetch_symbol_news(company_query)
     market_news = news_data.fetch_market_news()
     open_positions = _current_open_positions(db, symbol, fundamentals.get("sector"))
+    historical_context = retrieval.get_relevant_history(db, symbol)
     try:
         financial_statements = fundamentals_data.get_financial_statements(symbol)
     except Exception:
@@ -70,7 +99,7 @@ def run_committee_for_symbol(
         symbol=symbol, bars=bars, fundamentals=fundamentals,
         symbol_news=symbol_news, market_news=market_news, peer_bars=peer_bars,
         daily_bars=daily_bars, benchmark_bars=benchmark_bars, open_positions=open_positions,
-        financial_statements=financial_statements,
+        financial_statements=financial_statements, historical_context=historical_context,
     )
 
     analyst_votes, debate_vote, critic_votes = run_debate(ctx)
@@ -87,7 +116,7 @@ def run_committee_for_symbol(
     alternatives = opp_vote.metrics.get("alternatives", []) if opp_vote else []
 
     price = provider.get_latest_price(symbol)
-    reasoning_text = report_agent.build_consensus_reasoning(symbol, consensus, all_votes)
+    reasoning_text = report_agent.build_consensus_reasoning(symbol, consensus, all_votes, historical_context_summary(ctx))
 
     decision_row = Decision(
         symbol=symbol,
@@ -151,6 +180,8 @@ def run_committee_for_symbol(
         "directional_confidence": consensus.directional_confidence,
         "executed": decision_row.executed, "alerts": alerts,
     })
+
+    _print_decision_reasoning(symbol, consensus, reasoning_text, execution_result)
 
     return {
         "symbol": symbol,
