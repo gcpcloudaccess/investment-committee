@@ -55,9 +55,17 @@ DISAGREEMENT_BONUS = 0.5  # amplification for disagreeing while historically rel
 AGREEMENT_ADJ_MIN = 0.4
 AGREEMENT_ADJ_MAX = 1.6
 
-# Verdict thresholds on the winning action's directional confidence share (0-100)
-DECISIVE_THRESHOLD = 50.0
-LOW_CONVICTION_THRESHOLD = 35.0
+# Verdict thresholds on the winning action's directional confidence share (0-100).
+# Calibrated against real multi-agent committee runs, not guessed: with 13
+# intentionally-diverse agents (8 analysts + debate + 4 critics) covering
+# different domains, genuine 3-4-way splits are the norm, not unanimity - a
+# plurality winner with ~40-50% share and moderate backer conviction is
+# already a meaningfully above-noise lean, not something to wait out. The
+# original 50/35 thresholds effectively required near-unanimous, high-
+# confidence agreement to ever trade, which a deliberately diverse committee
+# rarely produces regardless of how clear the underlying signal actually is.
+DECISIVE_THRESHOLD = 30.0
+LOW_CONVICTION_THRESHOLD = 18.0
 
 
 @dataclass
@@ -82,6 +90,14 @@ def _agreement_adjustment(vote: AgentVote, all_votes: list[AgentVote], trust_sco
     agreement = _same_tick_agreement(vote, all_votes)
     adj = 1.0 - REDUNDANCY_FACTOR * agreement + DISAGREEMENT_BONUS * (1.0 - agreement) * trust_score
     return max(AGREEMENT_ADJ_MIN, min(AGREEMENT_ADJ_MAX, adj))
+
+
+def _trust_multiplier(trust: float) -> float:
+    """Maps trust (0-1) to a conviction multiplier centered on 1.0x at the
+    neutral 0.5 prior, so an untested agent's confidence isn't penalized
+    before it has any track record - only proven reliability/unreliability
+    should push conviction up or down from the neutral baseline."""
+    return 0.75 + 0.5 * trust
 
 
 def compute_consensus(votes: list[AgentVote], trust_scores: dict[str, float]) -> ConsensusResult:
@@ -122,15 +138,23 @@ def compute_consensus(votes: list[AgentVote], trust_scores: dict[str, float]) ->
 
     # Directional confidence blends two independent things: how *dominant* the
     # winning action is versus the rest of the room (share of trust-weighted
-    # influence), and how *convinced* the agents backing it actually are
-    # (their own confidence x trust). Using dominance alone would report 100%
-    # confidence any time the committee is unanimous, even if every agent
-    # backing it is a low-confidence, low-trust agent - which is not a
-    # meaningful "directional confidence" signal.
+    # influence), and how *convinced* the agents backing it actually are (their
+    # own confidence, modulated by trust around a neutral baseline). Using
+    # dominance alone would report 100% confidence any time the committee is
+    # unanimous, even if every backer is low-confidence - not meaningful.
+    #
+    # Trust modulates conviction rather than multiplying it directly: an agent
+    # with no track record yet sits at the neutral prior (trust=0.5), which
+    # must NOT discount its confidence, or the system could never place a
+    # first trade at all - trust already starts at 0.5 for every agent and
+    # only moves once a trade closes, so a raw confidence*trust term creates a
+    # permanent ceiling (share * 0.5 at best) that can never clear a 50%
+    # decisive threshold. Proven-reliable agents (trust -> 1) get a conviction
+    # boost; proven-unreliable ones (trust -> 0) get a real penalty.
     share = action_totals[winning_action] / total_weight
     backers = [v for v in votes if v.action == winning_action]
-    avg_conviction = sum(v.confidence * trust_scores.get(v.agent_name, 0.5) for v in backers) / len(backers)
-    directional_confidence = round(100.0 * share * avg_conviction, 2)
+    avg_conviction = sum(v.confidence * _trust_multiplier(trust_scores.get(v.agent_name, 0.5)) for v in backers) / len(backers)
+    directional_confidence = round(max(0.0, min(100.0, 100.0 * share * avg_conviction)), 2)
 
     if directional_confidence < LOW_CONVICTION_THRESHOLD:
         verdict = "WAIT"

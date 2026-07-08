@@ -78,3 +78,24 @@ def test_wait_on_low_conviction():
 
     result = compute_consensus(votes, trust_scores)
     assert result.verdict == "WAIT"
+
+
+def test_strong_fresh_consensus_can_still_clear_decisive_threshold():
+    """Regression guard: a brand-new system where every agent still sits at the
+    neutral trust prior (0.5, no closed trades yet to update it) must still be
+    ABLE to place a first trade when the room is genuinely unanimous and
+    confident. If neutral trust silently discounted conviction, the system
+    could never clear the decisive threshold on day one - a permanent
+    WAIT-only deadlock, since trust only updates from trade outcomes that can
+    never happen without an initial trade."""
+    votes = [
+        _vote("Technical Analyst", "BUY", 0.85),
+        _vote("Sentiment Analyst", "BUY", 0.8),
+        _vote("Algo Signal Analyst", "BUY", 0.8),
+        _vote("Risk Assessment Analyst", "BUY", 0.75),
+    ]
+    trust_scores = {name: 0.5 for name in ("Technical Analyst", "Sentiment Analyst", "Algo Signal Analyst", "Risk Assessment Analyst")}
+
+    result = compute_consensus(votes, trust_scores)
+    assert result.verdict == "BUY"
+    assert result.directional_confidence >= 50.0

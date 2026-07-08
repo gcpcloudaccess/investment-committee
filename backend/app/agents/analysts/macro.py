@@ -102,6 +102,11 @@ class MacroAnalyst(BaseAgent):
         regime_signal = _regime_signal()
         if regime_signal is not None:
             combined = blend_signals([regime_signal, news_signal], [0.6, 0.4])
+            system_prompt = (
+                "You are a macroeconomic analyst on a trading committee. Summarize how the macro backdrop "
+                "(GDP, inflation, rates, currency, global markets) affects this stock in 2-3 crisp sentences, "
+                "grounded only in the evidence given - do not assert macro facts beyond it."
+            )
         else:
             combined = dict(news_signal)
             combined["evidence"] = [
@@ -109,12 +114,18 @@ class MacroAnalyst(BaseAgent):
                 "Numeric macro regime analysis not configured - set MACRO_GDP_GROWTH_PCT/MACRO_INFLATION_PCT/"
                 "MACRO_POLICY_RATE_PCT in .env from RBI/MOSPI bulletins to activate it.",
             ]
+            system_prompt = (
+                "You are a macroeconomic analyst on a trading committee, but no live GDP/inflation/policy-rate data "
+                "is configured this tick - only macro-tagged news headlines are available. Comment ONLY on the "
+                "specific evidence given (2-3 sentences); do NOT assert claims about current GDP growth, inflation, "
+                "or RBI/central-bank policy stance, since you have no real data for those - state plainly that the "
+                "broader macro regime is unassessed if the evidence is thin."
+            )
 
         llm = get_llm_client()
         evidence_txt = " ".join(combined["evidence"])
         reasoning = llm.chat(
-            system="You are a macroeconomic analyst on a trading committee. Summarize how the macro backdrop "
-            "(GDP, inflation, rates, currency, global markets) affects this stock in 2-3 crisp sentences.",
+            system=system_prompt,
             user=f"Symbol {ctx.symbol}. Signal: {combined['action']} (confidence {combined['confidence']}). Evidence: {evidence_txt}",
             fallback=f"Macro read for {ctx.symbol}: {combined['action']}. {evidence_txt or 'No material macro headlines this tick.'}",
         )
