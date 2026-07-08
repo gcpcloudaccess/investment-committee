@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.agents import allocation_planner
 from app.config import get_settings
+from app.data import exchanges as exchange_registry
 from app.data import fundamentals as fundamentals_data
-from app.data import market_data
+from app.data import fx, market_data
 from app.data.market_data import MarketDataProvider
 from app.db.models import AgentVote, AuditLog, Decision, Portfolio, Position, Trade
 from app.db.session import get_db, init_db
@@ -54,6 +55,7 @@ def _position_dict(p: Position) -> dict:
         "opened_at": p.opened_at.isoformat() if p.opened_at else None,
         "closed_at": p.closed_at.isoformat() if p.closed_at else None,
         "exit_price": p.exit_price, "realized_pnl": p.realized_pnl,
+        "exchange": p.exchange, "currency": p.currency,
     }
 
 
@@ -63,6 +65,7 @@ def _trade_dict(t: Trade) -> dict:
         "price": t.price, "gross_value": t.gross_value, "total_costs": t.total_costs,
         "cost_breakdown": t.cost_breakdown_json, "net_cash_impact": t.net_cash_impact,
         "timestamp": t.timestamp.isoformat() if t.timestamp else None,
+        "exchange": t.exchange, "currency": t.currency, "price_local": t.price_local, "fx_rate_to_inr": t.fx_rate_to_inr,
     }
 
 
@@ -102,14 +105,21 @@ def _portfolio_total_value(db: Session, portfolio: Portfolio) -> float:
     """Mark-to-market total value of the ACTIVE portfolio (long-only: value of an
     open position is simply current price x quantity). Closed portfolios have no
     open positions after force-close, so their value is just cash_inr - use that
-    directly rather than calling this helper for a closed portfolio."""
+    directly rather than calling this helper for a closed portfolio.
+
+    get_latest_price() returns a symbol's own local currency (USD/GBP/SGD for a
+    foreign listing), so it must be converted back to INR-equivalent here just
+    like every other price in the pipeline (see supervisor.py) - otherwise a
+    live SGX/LSE/NYSE position's mark-to-market value would silently be treated
+    as if it were already in rupees."""
     positions = db.query(Position).filter_by(portfolio_id=portfolio.id, status="open").all()
     mtm_value = 0.0
     for p in positions:
         try:
-            price = _search_provider.get_latest_price(p.symbol)
+            price_local = _search_provider.get_latest_price(p.symbol)
+            price = price_local * fx.get_fx_rate(p.currency)
         except Exception:
-            price = p.avg_price
+            price = p.avg_price  # already INR-equivalent (stored that way at open time)
         mtm_value += price * p.quantity
     return portfolio.cash_inr + mtm_value
 
@@ -149,6 +159,8 @@ def get_portfolio(db: Session = Depends(get_db)) -> dict:
     return {
         "portfolio_id": portfolio.id,
         "status": portfolio.status,
+        "exchange": portfolio.exchange,
+        "exchange_label": exchange_registry.get_exchange(portfolio.exchange).label,
         "starting_capital": portfolio.starting_capital,
         "cash": round(portfolio.cash_inr, 2),
         "open_positions_value": round(mtm_value, 2),
@@ -292,6 +304,7 @@ def close_session() -> dict:
 
 @app.get("/settings")
 def get_settings_view() -> dict:
+    current = exchange_registry.get_open_exchange() if settings.data_mode == "live" else exchange_registry.get_exchange(settings.replay_exchange)
     return {
         "llm_provider": settings.llm_provider,
         "llm_key_configured": settings.llm_key_configured,
@@ -302,6 +315,15 @@ def get_settings_view() -> dict:
         "tick_minutes": settings.tick_minutes,
         "watchlist": settings.watchlist_symbols,
         "risk_tolerance": settings.risk_tolerance,
+        "currently_open_exchange": current.code if current else None,
+        "exchanges": [
+            {
+                "code": ex.code, "label": ex.label, "currency": ex.currency,
+                "open_time": ex.open_time.strftime("%H:%M"), "close_time": ex.close_time.strftime("%H:%M"),
+                "timezone": str(ex.tz), "watchlist": list(ex.watchlist), "is_open": ex.is_open(),
+            }
+            for ex in exchange_registry.ALL_EXCHANGES
+        ],
     }
 
 

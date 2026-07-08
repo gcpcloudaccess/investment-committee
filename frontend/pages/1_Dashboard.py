@@ -26,15 +26,16 @@ overall = portfolio["overall"]
 status_tone = "positive" if portfolio["status"] == "active" else "muted"
 
 # ---------------------------------------------------------------- top KPI strip
-k1, k2, k3, k4, k5 = st.columns(5)
+k1, k2, k3, k4, k5, k6 = st.columns(6)
 k1.markdown(metric_card("Status", portfolio["status"].upper(), tone=status_tone), unsafe_allow_html=True)
-k2.markdown(metric_card("Total Value", f"₹{portfolio['total_value']:,.2f}", tone=tone_for(portfolio["net_profit"])), unsafe_allow_html=True)
-k3.markdown(
+k2.markdown(metric_card("Exchange", portfolio["exchange"], delta=portfolio["exchange_label"]), unsafe_allow_html=True)
+k3.markdown(metric_card("Total Value", f"₹{portfolio['total_value']:,.2f}", tone=tone_for(portfolio["net_profit"])), unsafe_allow_html=True)
+k4.markdown(
     metric_card("Today's Return", f"₹{portfolio['net_profit']:,.2f}", delta=f"{portfolio['total_return_pct']:+.2f}%", tone=tone_for(portfolio["net_profit"])),
     unsafe_allow_html=True,
 )
-k4.markdown(metric_card("Cash", f"₹{portfolio['cash']:,.2f}"), unsafe_allow_html=True)
-k5.markdown(metric_card("Open Exposure", f"₹{portfolio['open_positions_value']:,.2f}"), unsafe_allow_html=True)
+k5.markdown(metric_card("Cash", f"₹{portfolio['cash']:,.2f}"), unsafe_allow_html=True)
+k6.markdown(metric_card("Open Exposure", f"₹{portfolio['open_positions_value']:,.2f}"), unsafe_allow_html=True)
 
 st.write("")
 tab_overview, tab_positions, tab_planner, tab_reports = st.tabs(["Overview", "Positions & Trades", "Planner & Risk", "Reports"])

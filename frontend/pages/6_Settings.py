@@ -17,7 +17,11 @@ c3.markdown(metric_card("Session Length", f"{settings['session_hours']}h"), unsa
 c4.markdown(metric_card("Tick Interval", f"{settings['tick_minutes']} min"), unsafe_allow_html=True)
 
 st.write("")
-data_mode_note = "Live NSE hours only (09:15–15:30 IST, Mon–Fri)" if settings["data_mode"] == "live" else "Replay of recent historical bars — demoable any time"
+if settings["data_mode"] == "live":
+    open_now = settings["currently_open_exchange"]
+    data_mode_note = f"Currently trading **{open_now}**" if open_now else "All 4 exchanges are currently closed — the session runner will resume the moment one opens"
+else:
+    data_mode_note = "Replay of recent historical bars — demoable any time, single exchange only"
 st.markdown(
     f'<div class="ic-card">Data Mode: <b style="color:#22D3EE;">{settings["data_mode"].upper()}</b> — {data_mode_note}</div>',
     unsafe_allow_html=True,
@@ -35,7 +39,30 @@ else:
     )
 
 st.write("")
-st.subheader("Watchlist")
+st.subheader("Exchanges (auto-switch when live)")
+st.caption(
+    "In LIVE mode, the session runner automatically trades whichever of these is currently open — one at a time — "
+    "and rolls over to the next as markets close. Priority when more than one is open: India → Singapore → London → US."
+)
+for ex in settings["exchanges"]:
+    status_color, status_text = ("#22C55E", "OPEN NOW") if ex["is_open"] else ("#64748B", "closed")
+    st.markdown(
+        f"""
+        <div class="ic-card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <span style="font-weight:700; color:#F1F5F9; font-size:1.02rem;">{ex['label']}</span>
+                <span class="ic-badge" style="margin-left:0.6rem; background:#131B2E;color:{status_color};border:1px solid {status_color};">{status_text}</span>
+            </div>
+            <div style="font-family:'SF Mono','Roboto Mono',monospace; color:#94A3B8; font-size:0.85rem;">
+                {ex['open_time']}–{ex['close_time']} {ex['timezone']} · {ex['currency']} · {', '.join(ex['watchlist'])}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.write("")
+st.subheader("NSE Watchlist (default/replay)")
 st.markdown(
     " ".join(f'<span class="ic-badge" style="background:#131B2E;color:#93C5FD;border:1px solid #1E293B">{s}</span>' for s in settings["watchlist"]),
     unsafe_allow_html=True,
