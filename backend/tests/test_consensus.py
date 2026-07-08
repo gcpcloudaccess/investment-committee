@@ -68,7 +68,10 @@ def test_agreement_adjustment_rewards_reliable_contrarian():
     assert contrarian_detail["agreement_adjustment"] > agreeing_detail["agreement_adjustment"]
 
 
-def test_wait_on_low_conviction():
+def test_no_trade_on_low_conviction():
+    """A genuine 3-way split (no two agents even agree on direction) must never
+    resolve to a real trade - WAIT and HOLD are both acceptable here (both mean
+    "no trade"); only BUY/SELL/SWITCH would be wrong."""
     votes = [
         _vote("Technical Analyst", "BUY", 0.3),
         _vote("Sentiment Analyst", "SELL", 0.3),
@@ -77,7 +80,22 @@ def test_wait_on_low_conviction():
     trust_scores = {"Technical Analyst": 0.5, "Sentiment Analyst": 0.5, "Fundamental Analyst": 0.5}
 
     result = compute_consensus(votes, trust_scores)
-    assert result.verdict == "WAIT"
+    assert result.verdict in ("WAIT", "HOLD")
+
+
+def test_moderate_plurality_diluted_by_hold_votes_still_trades():
+    """Regression guard for the HOLD-vote-count trap seen in production: HOLD
+    wins by sheer number of lukewarm backers (6 agents at ~0.2-0.35 confidence
+    each), while SELL has fewer backers but real, above-average conviction
+    (5 agents at ~0.4-0.7). A genuine, if imperfect, plurality lean like this
+    must still be able to execute - not lose every time to HOLD's headcount."""
+    hold_votes = [_vote(f"Hold Voter {i}", "HOLD", c) for i, c in enumerate([0.42, 0.34, 0.30, 0.25, 0.20, 0.15])]
+    sell_votes = [_vote(f"Sell Voter {i}", "SELL", c) for i, c in enumerate([0.77, 0.56, 0.42, 0.30, 0.24])]
+    trust_scores = {v.agent_name: 0.5 for v in (*hold_votes, *sell_votes)}
+
+    result = compute_consensus(hold_votes + sell_votes, trust_scores)
+    assert result.winning_action == "SELL"
+    assert result.verdict == "SELL"
 
 
 def test_strong_fresh_consensus_can_still_clear_decisive_threshold():

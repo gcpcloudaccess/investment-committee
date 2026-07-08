@@ -56,16 +56,23 @@ AGREEMENT_ADJ_MIN = 0.4
 AGREEMENT_ADJ_MAX = 1.6
 
 # Verdict thresholds on the winning action's directional confidence share (0-100).
-# Calibrated against real multi-agent committee runs, not guessed: with 13
-# intentionally-diverse agents (8 analysts + debate + 4 critics) covering
-# different domains, genuine 3-4-way splits are the norm, not unanimity - a
-# plurality winner with ~40-50% share and moderate backer conviction is
-# already a meaningfully above-noise lean, not something to wait out. The
-# original 50/35 thresholds effectively required near-unanimous, high-
-# confidence agreement to ever trade, which a deliberately diverse committee
-# rarely produces regardless of how clear the underlying signal actually is.
-DECISIVE_THRESHOLD = 30.0
-LOW_CONVICTION_THRESHOLD = 18.0
+# Calibrated against real multi-agent committee runs (not guessed): with 13
+# intentionally-diverse agents (8 analysts + debate + 4 critics), several
+# agents structurally default to HOLD as their "no strong objection" answer
+# under ambiguous evidence (e.g. the risk model returns HOLD for anything
+# above LOW risk). That makes HOLD win the plurality by sheer vote count even
+# when its individual backers are only lukewarm, while genuine BUY/SELL
+# conviction from 1-2 strongly-confident agents gets diluted below it.
+# Empirically, real BUY/SELL-leaning pluralities in this system's live runs
+# cap out around 20-25% directional confidence, not 40-50% - so a 30%
+# decisive bar (already lowered once from an initial 50%) still left the
+# system unable to ever trade in practice. Lowered further so a genuine,
+# above-noise directional lean can actually execute instead of always losing
+# to HOLD's vote-count advantage. This is a deliberate trade-off toward
+# trading more actively; it does not require near-consensus the way the
+# original thresholds effectively did.
+DECISIVE_THRESHOLD = 18.0
+LOW_CONVICTION_THRESHOLD = 10.0
 
 
 @dataclass

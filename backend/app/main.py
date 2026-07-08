@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.data.market_data import MarketDataProvider
-from app.db.models import AgentVote, AuditLog, Decision, Position, Trade
+from app.db.models import AgentVote, AuditLog, Decision, Portfolio, Position, Trade
 from app.db.session import get_db, init_db
 from app.orchestration import supervisor
 from app.orchestration.session_runner import SessionRunner
@@ -100,6 +100,24 @@ def get_portfolio(db: Session = Depends(get_db)) -> dict:
     total_value = portfolio.cash_inr + mtm_value
     net_profit = total_value - portfolio.starting_capital
 
+    # "Overall" aggregates every session (portfolio row) this app has ever run, not just
+    # today's: each session independently starts at settings.starting_capital_inr (₹10,000,
+    # non-compounding) and force-closes with 0 open positions, so a closed session's ending
+    # value is simply its final cash balance; the active session uses today's mark-to-market.
+    all_portfolios = db.query(Portfolio).all()
+    overall_starting_capital = 0.0
+    overall_ending_value = 0.0
+    closed_sessions = 0
+    for p in all_portfolios:
+        overall_starting_capital += p.starting_capital
+        if p.id == portfolio.id:
+            overall_ending_value += total_value
+        else:
+            overall_ending_value += p.cash_inr
+            closed_sessions += 1
+    overall_net_profit = overall_ending_value - overall_starting_capital
+    overall_return_pct = round((overall_net_profit / overall_starting_capital) * 100, 2) if overall_starting_capital else 0.0
+
     return {
         "portfolio_id": portfolio.id,
         "status": portfolio.status,
@@ -107,12 +125,21 @@ def get_portfolio(db: Session = Depends(get_db)) -> dict:
         "cash": round(portfolio.cash_inr, 2),
         "open_positions_value": round(mtm_value, 2),
         "total_value": round(total_value, 2),
+        # Intraday = this session only (kept as the original field names for compatibility).
         "net_profit": round(net_profit, 2),
         "total_return_pct": round((net_profit / portfolio.starting_capital) * 100, 2) if portfolio.starting_capital else 0.0,
         "leverage": portfolio.leverage,
         "positions": [_position_dict(p) for p in positions],
         "session_start": portfolio.session_start.isoformat() if portfolio.session_start else None,
         "session_end": portfolio.session_end.isoformat() if portfolio.session_end else None,
+        "overall": {
+            "total_sessions": len(all_portfolios),
+            "closed_sessions": closed_sessions,
+            "starting_capital": round(overall_starting_capital, 2),
+            "ending_value": round(overall_ending_value, 2),
+            "net_profit": round(overall_net_profit, 2),
+            "return_pct": overall_return_pct,
+        },
     }
 
 

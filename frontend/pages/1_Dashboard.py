@@ -21,16 +21,29 @@ with col_b:
 
 portfolio = get("/portfolio")
 status_tone = "positive" if portfolio["status"] == "active" else "muted"
+overall = portfolio["overall"]
 
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.markdown(metric_card("Status", portfolio["status"].upper(), tone=status_tone), unsafe_allow_html=True)
 c2.markdown(metric_card("Total Value", f"₹{portfolio['total_value']:,.2f}", tone=tone_for(portfolio["net_profit"])), unsafe_allow_html=True)
 c3.markdown(
-    metric_card("Net Profit", f"₹{portfolio['net_profit']:,.2f}", delta=f"{portfolio['total_return_pct']:+.2f}%", tone=tone_for(portfolio["net_profit"])),
+    metric_card("Intraday Return", f"₹{portfolio['net_profit']:,.2f}", delta=f"{portfolio['total_return_pct']:+.2f}%", tone=tone_for(portfolio["net_profit"])),
     unsafe_allow_html=True,
 )
 c4.markdown(metric_card("Cash", f"₹{portfolio['cash']:,.2f}"), unsafe_allow_html=True)
 c5.markdown(metric_card("Open Positions Value", f"₹{portfolio['open_positions_value']:,.2f}"), unsafe_allow_html=True)
+
+st.write("")
+st.subheader("Overall Return (all sessions)")
+o1, o2, o3, o4 = st.columns(4)
+o1.markdown(
+    metric_card("Overall Net Profit", f"₹{overall['net_profit']:,.2f}", delta=f"{overall['return_pct']:+.2f}%", tone=tone_for(overall["net_profit"])),
+    unsafe_allow_html=True,
+)
+o2.markdown(metric_card("Overall Starting Capital", f"₹{overall['starting_capital']:,.2f}"), unsafe_allow_html=True)
+o3.markdown(metric_card("Overall Ending Value", f"₹{overall['ending_value']:,.2f}"), unsafe_allow_html=True)
+o4.markdown(metric_card("Sessions Run", f"{overall['total_sessions']}", delta=f"{overall['closed_sessions']} closed"), unsafe_allow_html=True)
+st.caption("Each session independently starts at the configured capital (non-compounding); \"overall\" sums every session's result, including today's session-in-progress.")
 
 st.write("")
 st.subheader("Portfolio Growth Curve")
