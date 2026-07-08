@@ -17,11 +17,15 @@ c3.markdown(metric_card("Session Length", f"{settings['session_hours']}h"), unsa
 c4.markdown(metric_card("Tick Interval", f"{settings['tick_minutes']} min"), unsafe_allow_html=True)
 
 st.write("")
+open_now = settings["currently_open_exchange"]
+real_status = f"**{open_now}** is open right now" if open_now else "all 4 exchanges are closed right now"
 if settings["data_mode"] == "live":
-    open_now = settings["currently_open_exchange"]
-    data_mode_note = f"Currently trading **{open_now}**" if open_now else "All 4 exchanges are currently closed — the session runner will resume the moment one opens"
+    data_mode_note = f"Trading whichever exchange is open — {real_status}." if open_now else f"{real_status.capitalize()} — the session runner will resume the moment one opens."
 else:
-    data_mode_note = "Replay of recent historical bars — demoable any time, single exchange only"
+    data_mode_note = (
+        f"Demoing **{settings['session_exchange']}** regardless of the real clock (real-world status: {real_status}) "
+        "— replay mode always uses a single fixed exchange so it's demoable any time."
+    )
 st.markdown(
     f'<div class="ic-card">Data Mode: <b style="color:#22D3EE;">{settings["data_mode"].upper()}</b> — {data_mode_note}</div>',
     unsafe_allow_html=True,

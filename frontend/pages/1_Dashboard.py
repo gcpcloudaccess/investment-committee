@@ -24,11 +24,18 @@ with col_b:
 portfolio = get("/portfolio")
 overall = portfolio["overall"]
 status_tone = "positive" if portfolio["status"] == "active" else "muted"
+app_settings = get("/settings")
 
 # ---------------------------------------------------------------- top KPI strip
 k1, k2, k3, k4, k5, k6 = st.columns(6)
 k1.markdown(metric_card("Status", portfolio["status"].upper(), tone=status_tone), unsafe_allow_html=True)
-k2.markdown(metric_card("Exchange", portfolio["exchange"], delta=portfolio["exchange_label"]), unsafe_allow_html=True)
+if app_settings["data_mode"] == "live":
+    exchange_delta = "open now" if portfolio["exchange"] == app_settings["currently_open_exchange"] else "closed — will roll over next tick"
+    exchange_tone = "positive" if portfolio["exchange"] == app_settings["currently_open_exchange"] else "negative"
+else:
+    exchange_delta = "replay demo — not live"
+    exchange_tone = "muted"
+k2.markdown(metric_card("Exchange", portfolio["exchange"], delta=exchange_delta, tone=exchange_tone), unsafe_allow_html=True)
 k3.markdown(metric_card("Total Value", f"₹{portfolio['total_value']:,.2f}", tone=tone_for(portfolio["net_profit"])), unsafe_allow_html=True)
 k4.markdown(
     metric_card("Today's Return", f"₹{portfolio['net_profit']:,.2f}", delta=f"{portfolio['total_return_pct']:+.2f}%", tone=tone_for(portfolio["net_profit"])),

@@ -304,7 +304,14 @@ def close_session() -> dict:
 
 @app.get("/settings")
 def get_settings_view() -> dict:
-    current = exchange_registry.get_open_exchange() if settings.data_mode == "live" else exchange_registry.get_exchange(settings.replay_exchange)
+    # Real-world check, independent of data_mode - this answers "which exchange
+    # is actually open right now", never a stand-in for the replay session's
+    # exchange choice (that's session_exchange below). Conflating the two was
+    # a real bug: replay mode used to report the replay pick here even when
+    # that exchange was genuinely closed, which reads as a live status claim
+    # it wasn't making.
+    really_open = exchange_registry.get_open_exchange()
+    session_exchange = really_open if settings.data_mode == "live" else exchange_registry.get_exchange(settings.replay_exchange)
     return {
         "llm_provider": settings.llm_provider,
         "llm_key_configured": settings.llm_key_configured,
@@ -315,7 +322,8 @@ def get_settings_view() -> dict:
         "tick_minutes": settings.tick_minutes,
         "watchlist": settings.watchlist_symbols,
         "risk_tolerance": settings.risk_tolerance,
-        "currently_open_exchange": current.code if current else None,
+        "currently_open_exchange": really_open.code if really_open else None,
+        "session_exchange": session_exchange.code if session_exchange else None,
         "exchanges": [
             {
                 "code": ex.code, "label": ex.label, "currency": ex.currency,
