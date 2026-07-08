@@ -20,7 +20,7 @@ cp backend/.env.example backend/.env
 # -> http://127.0.0.1:8000  (docs at /docs)
 
 # 4. In a second terminal, run the frontend
-./.venv/Scripts/python -m streamlit run frontend/streamlit_app.py
+./.venv/Scripts/python -m streamlit run frontend/Home.py
 # -> http://localhost:8501
 ```
 
