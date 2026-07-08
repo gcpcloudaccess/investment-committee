@@ -15,11 +15,12 @@ if st.button("🔄 Refresh"):
 tab_trades, tab_decisions, tab_audit, tab_pdf = st.tabs(["Trade History", "Decision Log", "Audit Log", "PDF Trade Log"])
 
 with tab_trades:
+    st.caption("Retained and appended across every session/exchange rollover — not reset when the active session switches markets.")
     trades = get("/trades")
     if trades:
         st.dataframe(trades, width="stretch")
     else:
-        st.info("No trades executed yet this session.")
+        st.info("No trades executed yet.")
 
 with tab_decisions:
     decisions = get("/decisions", limit=200)

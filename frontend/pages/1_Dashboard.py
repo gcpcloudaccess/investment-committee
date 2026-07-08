@@ -144,7 +144,8 @@ with tab_positions:
     st.write("")
     trade_col, chart_col = st.columns([2, 3])
     with trade_col:
-        st.subheader("Trade History")
+        st.subheader("Trade History (all sessions)")
+        st.caption("Retained and appended across every exchange switch/session rollover, not just this active one.")
         trades = get("/trades") or []
         recent_trades = list(reversed(trades))[-10:]  # chronological, most recent 10
         if recent_trades:
@@ -158,6 +159,7 @@ with tab_positions:
                     f'<span style="color:#64748B;">{time_str}</span>'
                     f'<span style="color:{action_color}; font-weight:700;">{t["action"]}</span>'
                     f'<span style="color:#F1F5F9;">{t["symbol"]}</span>'
+                    f'<span style="color:#64748B; font-size:0.75rem;">{t["exchange"]}</span>'
                     f'<span style="color:#94A3B8;">₹{t["price"]:,.2f}</span>'
                     f"</div>"
                 )

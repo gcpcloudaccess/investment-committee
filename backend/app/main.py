@@ -61,7 +61,7 @@ def _position_dict(p: Position) -> dict:
 
 def _trade_dict(t: Trade) -> dict:
     return {
-        "id": t.id, "symbol": t.symbol, "action": t.action, "quantity": t.quantity,
+        "id": t.id, "portfolio_id": t.portfolio_id, "symbol": t.symbol, "action": t.action, "quantity": t.quantity,
         "price": t.price, "gross_value": t.gross_value, "total_costs": t.total_costs,
         "cost_breakdown": t.cost_breakdown_json, "net_cash_impact": t.net_cash_impact,
         "timestamp": t.timestamp.isoformat() if t.timestamp else None,
@@ -206,9 +206,18 @@ def get_equity_curve(db: Session = Depends(get_db)) -> dict:
 
 
 @app.get("/trades")
-def list_trades(db: Session = Depends(get_db)) -> list[dict]:
-    portfolio = execution_engine.get_active_portfolio(db)
-    trades = db.query(Trade).filter_by(portfolio_id=portfolio.id).order_by(Trade.timestamp.desc()).all()
+def list_trades(limit: int = 200, current_session_only: bool = False, db: Session = Depends(get_db)) -> list[dict]:
+    """Retained and appended across every session/exchange by default - a
+    session rolling over to a new exchange (see session_runner.py) closes the
+    old Portfolio row and opens a new one, and scoping this query to only the
+    active portfolio_id would make trade history appear to reset on every
+    rollover even though nothing was actually lost from the database.
+    current_session_only=True opts back into the old single-session view."""
+    query = db.query(Trade)
+    if current_session_only:
+        portfolio = execution_engine.get_active_portfolio(db)
+        query = query.filter_by(portfolio_id=portfolio.id)
+    trades = query.order_by(Trade.timestamp.desc()).limit(limit).all()
     return [_trade_dict(t) for t in trades]
 
 
