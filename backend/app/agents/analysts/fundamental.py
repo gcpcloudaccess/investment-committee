@@ -10,7 +10,7 @@ simpler .info-derived ratios our original fundamental_scoring.py tool used.
 When statements aren't available for a symbol (yfinance coverage varies),
 this falls back to that lighter PE/growth/margin model instead of guessing."""
 
-from app.agents.base import AgentVote, AnalysisContext, BaseAgent, blend_signals
+from app.agents.base import AgentVote, AnalysisContext, BaseAgent, blend_signals, prior_stage_summary
 from app.llm.client import get_llm_client
 from app.tools import fundamental_scoring, sector_intelligence
 from fundamental_analyst_agent import analyze as analyze_statements
@@ -74,9 +74,12 @@ class FundamentalAnalyst(BaseAgent):
 
         llm = get_llm_client()
         evidence_txt = " ".join(combined["evidence"])
+        context_txt = prior_stage_summary(ctx)
         reasoning = llm.chat(
-            system="You are a fundamental analyst on a trading committee. Summarize the valuation/quality case in 2-3 crisp sentences.",
-            user=f"Symbol {ctx.symbol}. Signal: {combined['action']} (confidence {combined['confidence']}). Evidence: {evidence_txt}",
+            system="You are a fundamental analyst on a trading committee, drilling into company-specific fundamentals "
+            "after the macro/sentiment/geopolitical backdrop has already been assessed. Summarize the valuation/quality "
+            "case in 2-3 crisp sentences, noting briefly if it reinforces or conflicts with that backdrop.",
+            user=f"Symbol {ctx.symbol}. Signal: {combined['action']} (confidence {combined['confidence']}). Evidence: {evidence_txt}\n\n{context_txt}",
             fallback=f"Fundamental read for {ctx.symbol}: {combined['action']}. {evidence_txt}",
         )
 

@@ -79,6 +79,22 @@ if run and symbol:
     else:
         st.info("No stronger risk-adjusted alternative was found in the watchlist this tick.")
 
+    sizing = (result.get("execution") or {}).get("sizing") or {}
+    if sizing.get("quantity"):
+        st.subheader("Position Sizing & Leverage")
+        s1, s2, s3, s4 = st.columns(4)
+        s1.markdown(metric_card("Quantity", f"{sizing['quantity']:g} shares"), unsafe_allow_html=True)
+        s2.markdown(metric_card("Notional", f"₹{sizing['notional']:,.2f}"), unsafe_allow_html=True)
+        s3.markdown(
+            metric_card("Leverage Used", f"{sizing['leverage_used']:.2f}×", tone="positive" if sizing["leverage_used"] > 1.0 else "neutral"),
+            unsafe_allow_html=True,
+        )
+        s4.markdown(metric_card("Margin Used", f"₹{sizing['margin_used_inr']:,.2f}"), unsafe_allow_html=True)
+        st.caption(
+            f"Leverage scales with directional confidence and risk regime, capped at {sizing['max_leverage']:.0f}× "
+            "(1:2) — a stronger, lower-risk recommendation can use more margin to buy more shares against the same capital."
+        )
+
     st.subheader("Expected Risk & Return (Scenario Analysis)")
     err = result.get("expected_risk_return") or {}
     if err.get("scenarios"):

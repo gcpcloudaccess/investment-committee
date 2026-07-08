@@ -21,6 +21,7 @@ class AnalysisContext:
     daily_bars: pd.DataFrame | None = None  # symbol's own daily OHLCV history (~6mo)
     benchmark_bars: pd.DataFrame | None = None  # benchmark (Nifty 50) daily OHLCV history (~6mo)
     open_positions: list[dict] = field(default_factory=list)  # [{symbol, weight, sector}]
+    prior_stage_votes: list["AgentVote"] = field(default_factory=list)  # votes from earlier tiers in the staged pipeline
 
 
 class AgentVote(BaseModel):
@@ -62,3 +63,13 @@ def blend_signals(signals: list[dict], weights: list[float]) -> dict:
     action = max(action_scores, key=action_scores.get)
     confidence = round(min(0.95, max(0.15, action_scores[action])), 3)
     return {"action": action, "confidence": confidence, "evidence": evidence, "metrics": metrics}
+
+
+def prior_stage_summary(ctx: AnalysisContext) -> str:
+    """One-line-per-agent digest of earlier pipeline tiers' votes, for later-tier
+    agents to reference in their own LLM reasoning (the "drill down informed by
+    the macro backdrop" behavior) - empty string when there's no prior stage."""
+    if not ctx.prior_stage_votes:
+        return ""
+    lines = [f"- {v.agent_name}: {v.action} (confidence {v.confidence:.2f})" for v in ctx.prior_stage_votes]
+    return "Earlier-stage committee context so far:\n" + "\n".join(lines)

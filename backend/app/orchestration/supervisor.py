@@ -16,7 +16,7 @@ from app.data import news_data
 from app.data.market_data import MarketDataProvider
 from app.db.models import AgentVote as AgentVoteRow
 from app.db.models import Decision, Position
-from app.portfolio import portfolio_manager, scenario_analysis
+from app.portfolio import portfolio_manager, position_sizing, scenario_analysis
 from app.reporting import alert_agent, audit_log, report_agent
 from app.trading import execution_engine
 
@@ -123,11 +123,19 @@ def run_committee_for_symbol(
             risk_level, volatility, price, decision_row.id,
         )
     else:
-        nominal_qty = max(int(1000 / price), 1) if price else 1
+        # Preview mode (Stock Search): show what sizing/leverage WOULD be used against the
+        # real active portfolio's current cash/exposure, without actually placing a trade.
+        preview_portfolio = execution_engine.get_active_portfolio(db)
+        preview_open_exposure = execution_engine.get_open_exposure(db, preview_portfolio)
+        sizing_preview = position_sizing.size_position(
+            consensus.directional_confidence, risk_level, price, preview_open_exposure, preview_portfolio.cash_inr,
+        )
+        preview_qty = sizing_preview["quantity"] or max(int(1000 / price), 1) if price else 1
         execution_result = {
             "executed": False,
             "reason": "Preview mode (Stock Search) - no trade executed.",
-            "scenario": scenario_analysis.stress_test(price, nominal_qty, "LONG", volatility),
+            "sizing": sizing_preview,
+            "scenario": scenario_analysis.stress_test(price, preview_qty, "LONG", volatility),
         }
 
     if execution_result.get("scenario"):

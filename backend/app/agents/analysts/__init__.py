@@ -7,16 +7,16 @@ from app.agents.analysts.risk import RiskAnalyst
 from app.agents.analysts.sentiment import SentimentAnalyst
 from app.agents.analysts.technical import TechnicalAnalyst
 
-ALL_ANALYSTS = [
-    FundamentalAnalyst,
-    TechnicalAnalyst,
-    MacroAnalyst,
-    SentimentAnalyst,
-    GeopoliticalAnalyst,
-    PolicyAnalyst,
-    RiskAnalyst,
-    AlgoSignalAnalyst,
-]
+# Staged pipeline (see app/agents/debate_loop.py): each tier runs after the
+# previous one completes, and later tiers receive earlier tiers' votes as
+# context (AnalysisContext.prior_stage_votes) - top-down macro/sentiment/
+# policy backdrop first, then company-specific drill-down informed by that
+# backdrop, then the algo model + its critic as the final automated signal.
+MACRO_TIER = [MacroAnalyst, SentimentAnalyst, GeopoliticalAnalyst, PolicyAnalyst]
+DRILLDOWN_TIER = [FundamentalAnalyst, TechnicalAnalyst, RiskAnalyst]
+ALGO_TIER = [AlgoSignalAnalyst]
+
+ALL_ANALYSTS = [*MACRO_TIER, *DRILLDOWN_TIER, *ALGO_TIER]
 
 __all__ = [
     "FundamentalAnalyst",
@@ -27,5 +27,8 @@ __all__ = [
     "PolicyAnalyst",
     "RiskAnalyst",
     "AlgoSignalAnalyst",
+    "MACRO_TIER",
+    "DRILLDOWN_TIER",
+    "ALGO_TIER",
     "ALL_ANALYSTS",
 ]

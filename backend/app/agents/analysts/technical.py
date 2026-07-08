@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.agents.base import AgentVote, AnalysisContext, BaseAgent, blend_signals
+from app.agents.base import AgentVote, AnalysisContext, BaseAgent, blend_signals, prior_stage_summary
 from app.llm.client import get_llm_client
 from app.tools import forecasting, technical_indicators
 from technical_analyst_agent import PriceBar, TechnicalAnalystAgent
@@ -86,13 +86,15 @@ class TechnicalAnalyst(BaseAgent):
 
         llm = get_llm_client()
         evidence_txt = " ".join(evidence)
+        context_txt = prior_stage_summary(ctx)
         reasoning = llm.chat(
             system=(
-                "You are a technical analyst on a trading committee, blending a fast intraday indicator read with "
-                "a daily-chart trend overlay. Summarize the technical case in 2-3 crisp sentences, noting whether "
-                "the intraday and daily-trend reads agree or conflict."
+                "You are a technical analyst on a trading committee, drilling into price action after the macro/"
+                "sentiment/geopolitical backdrop has already been assessed. Blending a fast intraday indicator read "
+                "with a daily-chart trend overlay, summarize the technical case in 2-3 crisp sentences, noting "
+                "whether the intraday and daily-trend reads agree or conflict."
             ),
-            user=f"Symbol {ctx.symbol}. Signal: {action} (confidence {confidence}). Evidence: {evidence_txt}",
+            user=f"Symbol {ctx.symbol}. Signal: {action} (confidence {confidence}). Evidence: {evidence_txt}\n\n{context_txt}",
             fallback=f"Technical read for {ctx.symbol}: {action}. {evidence_txt}",
         )
 

@@ -5,9 +5,15 @@ import streamlit as st
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
 
+# A committee tick analyzes up to 4 symbols, each running ~13 agent LLM calls
+# (bounded to 4 concurrent) - this reliably takes 2-2.5 minutes in practice.
+# Keep a generous margin above that rather than the httpx default of a few
+# seconds, or "Run Tick Now" / "Stock Search" will time out mid-analysis.
+TIMEOUT_SECONDS = 420.0
+
 
 def _client() -> httpx.Client:
-    return httpx.Client(base_url=BACKEND_URL, timeout=120.0)
+    return httpx.Client(base_url=BACKEND_URL, timeout=TIMEOUT_SECONDS)
 
 
 def get(path: str, **params):
@@ -18,6 +24,9 @@ def get(path: str, **params):
             return resp.json()
     except httpx.ConnectError:
         st.error(f"Cannot reach backend at {BACKEND_URL}. Is `uvicorn app.main:app` running?")
+        st.stop()
+    except httpx.TimeoutException:
+        st.error(f"Backend didn't respond within {TIMEOUT_SECONDS:.0f}s. It may still be finishing in the background — try refreshing shortly.")
         st.stop()
     except httpx.HTTPStatusError as e:
         st.error(f"Backend error on {path}: {e.response.status_code} {e.response.text}")
@@ -32,6 +41,9 @@ def post(path: str, **params):
             return resp.json()
     except httpx.ConnectError:
         st.error(f"Cannot reach backend at {BACKEND_URL}. Is `uvicorn app.main:app` running?")
+        st.stop()
+    except httpx.TimeoutException:
+        st.error(f"Backend didn't respond within {TIMEOUT_SECONDS:.0f}s. It may still be finishing in the background — try refreshing shortly.")
         st.stop()
     except httpx.HTTPStatusError as e:
         st.error(f"Backend error on {path}: {e.response.status_code} {e.response.text}")

@@ -28,7 +28,7 @@ import pandas as pd
 from algo_agent.agent import recommend
 from algo_agent.data import PriceBar
 from algo_agent.policy import TradePolicy
-from app.agents.base import AgentVote, AnalysisContext, BaseAgent
+from app.agents.base import AgentVote, AnalysisContext, BaseAgent, prior_stage_summary
 from app.config import get_settings
 from app.llm.client import get_llm_client
 from critic_agent.critic import review_recommendation
@@ -119,14 +119,17 @@ class AlgoSignalAnalyst(BaseAgent):
 
         llm = get_llm_client()
         evidence_txt = " ".join(evidence)
+        context_txt = prior_stage_summary(ctx)
         reasoning = llm.chat(
             system=(
-                "You are the Algo Signal Analyst on a trading committee: a freshly-trained logistic regression "
-                "model on this session's intraday bars, validated out-of-sample and reviewed by a dedicated critic "
-                "agent. Summarize the signal in 2-3 crisp sentences, being honest about whether the model actually "
-                "beats a naive baseline and whether the critic flagged concerns."
+                "You are the Algo Signal Analyst on a trading committee - the final automated stage after the macro/"
+                "sentiment/geopolitical backdrop and the fundamental/technical/risk drill-down have already run. A "
+                "freshly-trained logistic regression model on this session's intraday bars, validated out-of-sample "
+                "and reviewed by a dedicated critic agent. Summarize the signal in 2-3 crisp sentences, being honest "
+                "about whether the model actually beats a naive baseline, whether the critic flagged concerns, and "
+                "whether this automated signal agrees with the rest of the committee's earlier read."
             ),
-            user=f"Symbol {ctx.symbol}. Signal: {action} (confidence {confidence}). Evidence: {evidence_txt}",
+            user=f"Symbol {ctx.symbol}. Signal: {action} (confidence {confidence}). Evidence: {evidence_txt}\n\n{context_txt}",
             fallback=f"Algo signal for {ctx.symbol}: {action}. {evidence_txt}",
         )
 

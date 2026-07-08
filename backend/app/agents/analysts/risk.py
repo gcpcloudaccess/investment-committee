@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from app.agents.base import AgentVote, AnalysisContext, BaseAgent
+from app.agents.base import AgentVote, AnalysisContext, BaseAgent, prior_stage_summary
 from app.data.market_data import CACHE_DIR
 from app.llm.client import get_llm_client
 from app.tools import risk_model, sentiment_engine
@@ -98,13 +98,16 @@ class RiskAnalyst(BaseAgent):
 
         llm = get_llm_client()
         evidence_txt = " ".join(evidence)
+        context_txt = prior_stage_summary(ctx)
         reasoning = llm.chat(
             system=(
-                "You are the Risk Assessment Analyst on a trading committee, combining a fast intraday volatility "
-                "read with a comprehensive quantitative risk model (beta, Sharpe/Sortino, VaR/CVaR, liquidity, "
-                "concentration, sector exposure, market regime). Summarize the risk case in 2-3 crisp sentences."
+                "You are the Risk Assessment Analyst on a trading committee, drilling into company/position-specific "
+                "risk after the macro/sentiment/geopolitical backdrop has already been assessed. Combining a fast "
+                "intraday volatility read with a comprehensive quantitative risk model (beta, Sharpe/Sortino, VaR/"
+                "CVaR, liquidity, concentration, sector exposure, market regime), summarize the risk case in 2-3 "
+                "crisp sentences."
             ),
-            user=f"Symbol {ctx.symbol}. Signal: {action} (confidence {confidence}). Evidence: {evidence_txt}",
+            user=f"Symbol {ctx.symbol}. Signal: {action} (confidence {confidence}). Evidence: {evidence_txt}\n\n{context_txt}",
             fallback=f"Risk read for {ctx.symbol}: {action}. {evidence_txt}",
         )
 
