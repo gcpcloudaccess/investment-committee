@@ -51,7 +51,13 @@ class LLMClient:
                     system=system,
                     messages=[{"role": "user", "content": user}],
                 )
-                return resp.content[0].text.strip()
+                # Response content can include non-text blocks first (e.g. a
+                # ThinkingBlock when extended thinking triggers) - content[0]
+                # is not reliably the text response, so find the text block.
+                text_blocks = [block.text for block in resp.content if getattr(block, "type", None) == "text"]
+                if not text_blocks:
+                    raise ValueError(f"No text block in response content: {[type(b).__name__ for b in resp.content]}")
+                return "".join(text_blocks).strip()
             else:
                 resp = self._client.chat.completions.create(
                     model=self.settings.openai_model,
