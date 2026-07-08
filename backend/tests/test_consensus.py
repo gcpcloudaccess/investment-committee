@@ -98,6 +98,22 @@ def test_moderate_plurality_diluted_by_hold_votes_still_trades():
     assert result.verdict == "SELL"
 
 
+def test_single_strong_directional_vote_not_crowded_out_by_hold_headcount():
+    """Regression guard for the exact pattern seen in production: a single
+    agent casts the single highest-weighted vote of the entire tick on a
+    directional action (SWITCH at 0.85 confidence), but six other agents each
+    cast a moderate-confidence HOLD - collectively out-numbering (though not
+    out-convincing) the directional call. The directional action must be
+    judged on its own merit against the decisive threshold, not forced to
+    first out-weigh HOLD's headcount just to become a candidate."""
+    switch_vote = _vote("Opportunity Critic", "SWITCH", 0.85)
+    hold_votes = [_vote(f"Hold Voter {i}", "HOLD", c) for i, c in enumerate([0.62, 0.55, 0.48, 0.34, 0.27, 0.26])]
+    trust_scores = {v.agent_name: 0.5 for v in (switch_vote, *hold_votes)}
+
+    result = compute_consensus([switch_vote, *hold_votes], trust_scores)
+    assert result.winning_action == "SWITCH"
+
+
 def test_strong_fresh_consensus_can_still_clear_decisive_threshold():
     """Regression guard: a brand-new system where every agent still sits at the
     neutral trust prior (0.5, no closed trades yet to update it) must still be

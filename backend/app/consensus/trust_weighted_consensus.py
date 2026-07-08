@@ -107,6 +107,21 @@ def _trust_multiplier(trust: float) -> float:
     return 0.75 + 0.5 * trust
 
 
+def _confidence_for(action: str, votes: list[AgentVote], trust_scores: dict[str, float], action_totals: dict[str, float], total_weight: float) -> float:
+    """Directional confidence for one specific action: how *dominant* it is
+    versus the rest of the room (share of trust-weighted influence), blended
+    with how *convinced* its own backers are (their confidence, modulated by
+    trust around a neutral baseline). Using dominance alone would report 100%
+    confidence any time the committee is unanimous, even if every backer is
+    low-confidence - not meaningful."""
+    backers = [v for v in votes if v.action == action]
+    if not backers:
+        return 0.0
+    share = action_totals[action] / total_weight
+    avg_conviction = sum(v.confidence * _trust_multiplier(trust_scores.get(v.agent_name, 0.5)) for v in backers) / len(backers)
+    return round(max(0.0, min(100.0, 100.0 * share * avg_conviction)), 2)
+
+
 def compute_consensus(votes: list[AgentVote], trust_scores: dict[str, float]) -> ConsensusResult:
     """
     votes: all analyst + critic votes cast this tick for one symbol.
@@ -141,27 +156,27 @@ def compute_consensus(votes: list[AgentVote], trust_scores: dict[str, float]) ->
         )
 
     total_weight = sum(action_totals.values()) or 1e-9
-    winning_action = max(action_totals, key=action_totals.get)
 
-    # Directional confidence blends two independent things: how *dominant* the
-    # winning action is versus the rest of the room (share of trust-weighted
-    # influence), and how *convinced* the agents backing it actually are (their
-    # own confidence, modulated by trust around a neutral baseline). Using
-    # dominance alone would report 100% confidence any time the committee is
-    # unanimous, even if every backer is low-confidence - not meaningful.
-    #
-    # Trust modulates conviction rather than multiplying it directly: an agent
-    # with no track record yet sits at the neutral prior (trust=0.5), which
-    # must NOT discount its confidence, or the system could never place a
-    # first trade at all - trust already starts at 0.5 for every agent and
-    # only moves once a trade closes, so a raw confidence*trust term creates a
-    # permanent ceiling (share * 0.5 at best) that can never clear a 50%
-    # decisive threshold. Proven-reliable agents (trust -> 1) get a conviction
-    # boost; proven-unreliable ones (trust -> 0) get a real penalty.
-    share = action_totals[winning_action] / total_weight
-    backers = [v for v in votes if v.action == winning_action]
-    avg_conviction = sum(v.confidence * _trust_multiplier(trust_scores.get(v.agent_name, 0.5)) for v in backers) / len(backers)
-    directional_confidence = round(max(0.0, min(100.0, 100.0 * share * avg_conviction)), 2)
+    # Evaluate the strongest directional action (BUY/SELL/SWITCH) on its own
+    # merit FIRST, before falling back to whichever action has the single
+    # largest raw weight sum. HOLD/WAIT are "no thesis" defaults that several
+    # agents fall back to under any ambiguity, so they routinely accumulate
+    # more total *backers* than a genuine directional call - which let HOLD
+    # win by sheer vote count even when, say, a single agent's SWITCH vote at
+    # 0.85 confidence was the single highest-weighted vote in the entire tick.
+    # A real, above-noise directional signal deserves to be judged against the
+    # decisive threshold directly, not forced to first out-number a pile of
+    # hedged HOLD votes just to become a candidate.
+    directional_actions = ("BUY", "SELL", "SWITCH")
+    best_directional = max(directional_actions, key=lambda a: action_totals[a])
+    best_directional_confidence = _confidence_for(best_directional, votes, trust_scores, action_totals, total_weight)
+
+    if best_directional_confidence >= DECISIVE_THRESHOLD:
+        winning_action = best_directional
+        directional_confidence = best_directional_confidence
+    else:
+        winning_action = max(action_totals, key=action_totals.get)
+        directional_confidence = _confidence_for(winning_action, votes, trust_scores, action_totals, total_weight)
 
     if directional_confidence < LOW_CONVICTION_THRESHOLD:
         verdict = "WAIT"
