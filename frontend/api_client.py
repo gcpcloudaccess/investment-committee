@@ -16,19 +16,28 @@ def _client() -> httpx.Client:
     return httpx.Client(base_url=BACKEND_URL, timeout=TIMEOUT_SECONDS)
 
 
-def get(path: str, **params):
+def get(path: str, silent: bool = False, **params):
+    """silent=True returns None on a failed request instead of halting the whole
+    page — for optional widgets (e.g. a stock chart) that shouldn't take down a
+    dashboard that's otherwise fine."""
     try:
         with _client() as c:
             resp = c.get(path, params=params or None)
             resp.raise_for_status()
             return resp.json()
     except httpx.ConnectError:
+        if silent:
+            return None
         st.error(f"Cannot reach backend at {BACKEND_URL}. Is `uvicorn app.main:app` running?")
         st.stop()
     except httpx.TimeoutException:
+        if silent:
+            return None
         st.error(f"Backend didn't respond within {TIMEOUT_SECONDS:.0f}s. It may still be finishing in the background — try refreshing shortly.")
         st.stop()
     except httpx.HTTPStatusError as e:
+        if silent:
+            return None
         st.error(f"Backend error on {path}: {e.response.status_code} {e.response.text}")
         st.stop()
 

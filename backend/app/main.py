@@ -169,6 +169,25 @@ def list_trades(db: Session = Depends(get_db)) -> list[dict]:
     return [_trade_dict(t) for t in trades]
 
 
+@app.get("/market/chart/{symbol}")
+def get_market_chart(symbol: str, db: Session = Depends(get_db)) -> dict:
+    bars = _search_provider.get_recent_bars(symbol, lookback_bars=100)
+    if bars.empty:
+        raise HTTPException(status_code=404, detail=f"No bar data available for {symbol}")
+
+    portfolio = execution_engine.get_active_portfolio(db)
+    trades = (
+        db.query(Trade)
+        .filter_by(portfolio_id=portfolio.id, symbol=symbol)
+        .order_by(Trade.timestamp)
+        .all()
+    )
+    trade_points = [{"timestamp": t.timestamp.isoformat(), "action": t.action, "price": t.price} for t in trades]
+
+    figure = visualization.build_price_chart(symbol, bars, trade_points)
+    return {"symbol": symbol, "latest_price": float(bars["Close"].iloc[-1]), "figure": figure}
+
+
 # ---------------------------------------------------------------- watchlist / search
 @app.get("/watchlist")
 def get_watchlist(db: Session = Depends(get_db)) -> list[dict]:

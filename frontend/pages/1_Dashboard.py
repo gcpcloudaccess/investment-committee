@@ -34,25 +34,48 @@ c4.markdown(metric_card("Cash", f"₹{portfolio['cash']:,.2f}"), unsafe_allow_ht
 c5.markdown(metric_card("Open Positions Value", f"₹{portfolio['open_positions_value']:,.2f}"), unsafe_allow_html=True)
 
 st.write("")
-st.subheader("Overall Return (all sessions)")
+st.subheader("Overall Return (across all sessions)")
 o1, o2, o3, o4 = st.columns(4)
 o1.markdown(
     metric_card("Overall Net Profit", f"₹{overall['net_profit']:,.2f}", delta=f"{overall['return_pct']:+.2f}%", tone=tone_for(overall["net_profit"])),
     unsafe_allow_html=True,
 )
-o2.markdown(metric_card("Overall Starting Capital", f"₹{overall['starting_capital']:,.2f}"), unsafe_allow_html=True)
-o3.markdown(metric_card("Overall Ending Value", f"₹{overall['ending_value']:,.2f}"), unsafe_allow_html=True)
+o2.markdown(
+    metric_card("Cumulative Capital Deployed", f"₹{overall['starting_capital']:,.2f}", delta=f"{overall['total_sessions']} × ₹{portfolio['starting_capital']:,.0f} sessions"),
+    unsafe_allow_html=True,
+)
+o3.markdown(metric_card("Cumulative Ending Value", f"₹{overall['ending_value']:,.2f}"), unsafe_allow_html=True)
 o4.markdown(metric_card("Sessions Run", f"{overall['total_sessions']}", delta=f"{overall['closed_sessions']} closed"), unsafe_allow_html=True)
-st.caption("Each session independently starts at the configured capital (non-compounding); \"overall\" sums every session's result, including today's session-in-progress.")
+st.caption(
+    f"Not a leverage figure. Each of the {overall['total_sessions']} sessions independently starts fresh at "
+    f"₹{portfolio['starting_capital']:,.0f} (non-compounding) — this row just adds them up for a historical total. "
+    f"Your current session's leverage cap is separate: cash (₹{portfolio['cash']:,.0f}) × {portfolio['leverage']:.0f}× leverage "
+    f"= up to ₹{portfolio['starting_capital'] * portfolio['leverage']:,.0f} exposure, shown per-trade under Position Sizing & Leverage on Stock Search."
+)
 
 st.write("")
-st.subheader("Portfolio Growth Curve")
-eq = get("/portfolio/equity-curve")
-if eq["figure"]["data"]:
-    fig = go.Figure(eq["figure"])
-    st.plotly_chart(fig, width="stretch")
-else:
-    st.info("No trades yet this session — equity curve will populate once the committee executes trades.")
+chart_col, price_col = st.columns([3, 2])
+with chart_col:
+    st.subheader("Portfolio Growth Curve")
+    eq = get("/portfolio/equity-curve")
+    if eq["figure"]["data"]:
+        fig = go.Figure(eq["figure"])
+        st.plotly_chart(fig, width="stretch")
+    else:
+        st.info("No trades yet this session — equity curve will populate once the committee executes trades.")
+
+with price_col:
+    st.subheader("Stock Chart")
+    watchlist = get("/settings")["watchlist"]
+    held_symbols = [p["symbol"] for p in portfolio["positions"]]
+    default_symbol = held_symbols[0] if held_symbols else (watchlist[0] if watchlist else "RELIANCE.NS")
+    chart_options = list(dict.fromkeys([*held_symbols, *watchlist]))
+    chart_symbol = st.selectbox("Symbol", chart_options or [default_symbol], index=0)
+    chart_data = get(f"/market/chart/{chart_symbol}", silent=True)
+    if chart_data:
+        st.plotly_chart(go.Figure(chart_data["figure"]), width="stretch")
+    else:
+        st.info(f"No chart data available for {chart_symbol} right now.")
 
 st.subheader("Open Positions")
 if portfolio["positions"]:
