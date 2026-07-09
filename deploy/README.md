@@ -1,6 +1,6 @@
 # Deploying to Cloud Run via GitHub Actions
 
-Two Cloud Run services, deployed from one workflow on every push to `main`:
+Two Cloud Run services, deployed from one workflow on every push to `master`:
 
 - **`money-minting-machine-backend`** — FastAPI + the 15-agent committee + SQLite, built from [`backend/Dockerfile`](../backend/Dockerfile)
 - **`money-minting-machine-frontend`** — Streamlit, built from [`frontend/Dockerfile`](../frontend/Dockerfile), talks to the backend over `BACKEND_URL` (set automatically to the backend's live Cloud Run URL each deploy)
@@ -26,7 +26,7 @@ At the end it prints two values — add them as **GitHub repo secrets** (Setting
 | `GCP_WORKLOAD_IDENTITY_PROVIDER` | printed by the script |
 | `GCP_SERVICE_ACCOUNT` | `github-deployer@money-minting-machine.iam.gserviceaccount.com` |
 
-## Then: push to `main`, or run it manually
+## Then: push to `master`, or run it manually
 
 The workflow ([`.github/workflows/deploy-cloud-run.yml`](../.github/workflows/deploy-cloud-run.yml)) triggers on pushes touching `backend/`, `frontend/`, or `run_backend.py`, or manually via the Actions tab → "Deploy to Cloud Run" → **Run workflow**.
 
