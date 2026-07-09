@@ -1,0 +1,22 @@
+.git/
+.github/
+.claude/
+.venv/
+.streamlit/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+
+# Never bake secrets or local data into an image - Cloud Run gets its config
+# via --set-env-vars / --set-secrets at deploy time instead.
+.env
+backend/.env
+frontend/.env
+backend/*.db
+data_cache/
+reports/
+
+README.md
+deploy/
+*.md

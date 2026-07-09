@@ -1,0 +1,118 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "run_backend.py"
+      - ".github/workflows/deploy-cloud-run.yml"
+  workflow_dispatch: {}
+
+env:
+  PROJECT_ID: money-minting-machine
+  REGION: asia-south1
+  AR_REPO: money-minting-machine
+  BACKEND_SERVICE: money-minting-machine-backend
+  FRONTEND_SERVICE: money-minting-machine-frontend
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      # ---------------------------------------------------------------- backend
+      - name: Build backend image
+        run: |
+          docker build -f backend/Dockerfile \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend:${{ github.sha }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend:latest \
+            .
+
+      - name: Push backend image
+        run: docker push --all-tags ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend
+
+      - name: Deploy backend to Cloud Run
+        id: deploy_backend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.BACKEND_SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/backend:${{ github.sha }}
+          flags: >-
+            --allow-unauthenticated
+            --min-instances=1
+            --max-instances=1
+            --memory=1Gi
+            --cpu=1
+            --timeout=600
+          env_vars: |
+            LLM_PROVIDER=anthropic
+            ANTHROPIC_MODEL=claude-sonnet-5
+            DATA_MODE=replay
+            REPLAY_EXCHANGE=NSE
+            STARTING_CAPITAL_INR=10000
+            LEVERAGE=2
+            SESSION_HOURS=4
+            TICK_MINUTES=3
+            MAX_SYMBOLS_PER_TICK=1
+            RISK_TOLERANCE=moderate
+            MAX_PARALLEL_AGENTS=4
+            WATCHLIST=RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,LT.NS,SBIN.NS,ITC.NS,BHARTIARTL.NS,AXISBANK.NS,KOTAKBANK.NS,MARUTI.NS,SUNPHARMA.NS,TITAN.NS,ASIANPAINT.NS,BAJFINANCE.NS,HCLTECH.NS,WIPRO.NS
+          secrets: |
+            ANTHROPIC_API_KEY=anthropic-api-key:latest
+            OPENAI_API_KEY=openai-api-key:latest
+            NEWSAPI_KEY=newsapi-key:latest
+
+      # ---------------------------------------------------------------- frontend
+      - name: Build frontend image
+        run: |
+          docker build -f frontend/Dockerfile \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend:${{ github.sha }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend:latest \
+            .
+
+      - name: Push frontend image
+        run: docker push --all-tags ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend
+
+      - name: Deploy frontend to Cloud Run
+        id: deploy_frontend
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.FRONTEND_SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.AR_REPO }}/frontend:${{ github.sha }}
+          flags: >-
+            --allow-unauthenticated
+            --min-instances=1
+            --max-instances=2
+            --memory=1Gi
+            --cpu=1
+            --timeout=600
+          env_vars: |
+            BACKEND_URL=${{ steps.deploy_backend.outputs.url }}
+
+      - name: Print deployed URLs
+        run: |
+          echo "Backend:  ${{ steps.deploy_backend.outputs.url }}"
+          echo "Frontend: ${{ steps.deploy_frontend.outputs.url }}"

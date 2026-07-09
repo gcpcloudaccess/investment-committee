@@ -1,9 +1,7 @@
-from pathlib import Path
-
 import plotly.graph_objects as go
 import streamlit as st
 
-from api_client import get, post
+from api_client import get, get_bytes, post
 from theme import inject_base_css, metric_card, page_header, tone_for, verdict_badge
 
 st.set_page_config(page_title="Dashboard-M3 (Money Minting Machine)", page_icon="📊", layout="wide")
@@ -192,10 +190,11 @@ with main_col:
         st.subheader("Complete Explainable Trade Log")
         st.write("Full session summary, every trade, and the complete reasoning behind every decision.")
         st.caption("Use **Generate PDF** and **Force Close Session** in the Session Control panel on the right.")
-        last_path = st.session_state.get("dashboard_report_path")
-        if last_path and Path(last_path).exists():
-            with open(last_path, "rb") as f:
-                st.download_button("Download Last Generated PDF", f, file_name=Path(last_path).name, mime="application/pdf")
+        report_filename = st.session_state.get("dashboard_report_filename")
+        if report_filename:
+            pdf_bytes = get_bytes(f"/reports/download/{report_filename}")
+            if pdf_bytes:
+                st.download_button("Download Last Generated PDF", pdf_bytes, file_name=report_filename, mime="application/pdf")
 
 # ================================================================== RIGHT: session control panel
 with side_col, st.container(border=True):
@@ -236,12 +235,13 @@ with side_col, st.container(border=True):
     if st.button("Generate PDF", width="stretch"):
         with st.spinner("Generating PDF..."):
             result = post("/reports/generate")
-        st.session_state["dashboard_report_path"] = result["report_path"]
+        st.session_state["dashboard_report_filename"] = result["filename"]
         st.rerun()
-    last_path = st.session_state.get("dashboard_report_path")
-    if last_path and Path(last_path).exists():
-        with open(last_path, "rb") as f:
-            st.download_button("Download PDF", f, file_name=Path(last_path).name, mime="application/pdf", width="stretch")
+    report_filename = st.session_state.get("dashboard_report_filename")
+    if report_filename:
+        pdf_bytes = get_bytes(f"/reports/download/{report_filename}")
+        if pdf_bytes:
+            st.download_button("Download PDF", pdf_bytes, file_name=report_filename, mime="application/pdf", width="stretch")
 
     st.markdown('<div class="ic-panel-title">Watchlist Pulse</div>', unsafe_allow_html=True)
     pulse = get("/watchlist", silent=True) or []

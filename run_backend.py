@@ -11,4 +11,8 @@ sys.path.insert(0, BACKEND_DIR)
 import uvicorn  # noqa: E402
 
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=False)
+    # Cloud Run injects PORT (and expects the container to bind 0.0.0.0) -
+    # default to the local-dev values (127.0.0.1:8000) when unset.
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8000"))
+    uvicorn.run("app.main:app", host=host, port=port, reload=False)

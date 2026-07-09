@@ -1,8 +1,6 @@
-from pathlib import Path
-
 import streamlit as st
 
-from api_client import get, post
+from api_client import get, get_bytes, post
 from theme import inject_base_css, page_header, verdict_badge
 
 st.set_page_config(page_title="Reports & Logs", page_icon="🧾", layout="wide")
@@ -82,11 +80,11 @@ with tab_pdf:
     if st.button("📄 Generate PDF Report", type="primary"):
         with st.spinner("Generating PDF..."):
             result = post("/reports/generate")
-        report_path = Path(result["report_path"])
-        st.session_state["last_report_path"] = str(report_path)
-        st.success(f"Report generated: {report_path.name}")
+        st.session_state["last_report_filename"] = result["filename"]
+        st.success(f"Report generated: {result['filename']}")
 
-    last_path = st.session_state.get("last_report_path")
-    if last_path and Path(last_path).exists():
-        with open(last_path, "rb") as f:
-            st.download_button("⬇️ Download PDF", f, file_name=Path(last_path).name, mime="application/pdf")
+    report_filename = st.session_state.get("last_report_filename")
+    if report_filename:
+        pdf_bytes = get_bytes(f"/reports/download/{report_filename}")
+        if pdf_bytes:
+            st.download_button("⬇️ Download PDF", pdf_bytes, file_name=report_filename, mime="application/pdf")

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.agents import allocation_planner
@@ -300,7 +302,19 @@ def get_audit_log(limit: int = 100, db: Session = Depends(get_db)) -> list[dict]
 def generate_report(db: Session = Depends(get_db)) -> dict:
     portfolio = execution_engine.get_active_portfolio(db)
     path = pdf_export.generate_session_report(db, portfolio)
-    return {"report_path": path}
+    return {"report_path": path, "filename": Path(path).name}
+
+
+@app.get("/reports/download/{filename}")
+def download_report(filename: str) -> FileResponse:
+    # Deployed frontend/backend are separate services with no shared filesystem
+    # (unlike local dev, where the frontend could just open() the backend's
+    # report_path directly) - so the PDF bytes have to come back over HTTP.
+    # Resolve strictly inside REPORTS_DIR to reject any path traversal.
+    candidate = (pdf_export.REPORTS_DIR / filename).resolve()
+    if candidate.parent != pdf_export.REPORTS_DIR.resolve() or not candidate.exists():
+        raise HTTPException(status_code=404, detail="Report not found")
+    return FileResponse(candidate, media_type="application/pdf", filename=filename)
 
 
 # ---------------------------------------------------------------- session controls

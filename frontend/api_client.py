@@ -42,6 +42,19 @@ def get(path: str, silent: bool = False, **params):
         st.stop()
 
 
+def get_bytes(path: str) -> bytes | None:
+    """Like get(), but for binary responses (e.g. PDF downloads) - the frontend
+    and backend are separate deployed services with no shared filesystem, so
+    file content always has to come back over HTTP, never via a local open()."""
+    try:
+        with _client() as c:
+            resp = c.get(path)
+            resp.raise_for_status()
+            return resp.content
+    except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError):
+        return None
+
+
 def post(path: str, **params):
     try:
         with _client() as c:
