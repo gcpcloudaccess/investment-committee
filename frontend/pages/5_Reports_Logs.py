@@ -18,7 +18,30 @@ with tab_trades:
     st.caption("Retained and appended across every session/exchange rollover — not reset when the active session switches markets.")
     trades = get("/trades")
     if trades:
-        st.dataframe(trades, width="stretch")
+        for t in trades:
+            action_color = "#2DD4BF" if t["action"] == "BUY" else "#FB7185"
+            st.markdown(
+                f"""
+                <div class="ic-card" style="display:flex; align-items:center; justify-content:space-between;">
+                    <div>
+                        <span style="color:#5B6B84; font-size:0.82rem; font-family:'JetBrains Mono','SF Mono',monospace;">{t['timestamp']}</span>
+                        <span style="color:{action_color}; font-weight:700; margin-left:0.7rem;">{t['action']}</span>
+                        <span style="font-weight:700; color:#F8FAFC; margin-left:0.4rem;">{t['symbol']}</span>
+                        <span class="ic-badge" style="margin-left:0.6rem; background:#161B27;color:#8B96A8;border:1px solid #2A3140;">{t['exchange']}</span>
+                    </div>
+                    <div style="font-family:'JetBrains Mono','SF Mono',monospace; color:#8B96A8; font-size:0.88rem;">
+                        Qty {t['quantity']:g} @ ₹{t['price']:,.2f} · costs ₹{t['total_costs']:,.2f}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            if t.get("reasoning"):
+                verdict_txt = f"{t['verdict']} · {t['directional_confidence']:.1f}% directional confidence" if t.get("verdict") else ""
+                with st.expander(f"Why the committee made this {t['action']} call ({verdict_txt})" if verdict_txt else "Why the committee made this call"):
+                    st.write(t["reasoning"])
+            else:
+                st.caption("No linked committee decision (e.g. a force-close at session end) — no reasoning trail available for this fill.")
     else:
         st.info("No trades executed yet.")
 

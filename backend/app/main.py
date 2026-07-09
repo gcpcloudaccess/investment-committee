@@ -59,13 +59,16 @@ def _position_dict(p: Position) -> dict:
     }
 
 
-def _trade_dict(t: Trade) -> dict:
+def _trade_dict(t: Trade, decision: Decision | None = None) -> dict:
     return {
-        "id": t.id, "portfolio_id": t.portfolio_id, "symbol": t.symbol, "action": t.action, "quantity": t.quantity,
+        "id": t.id, "portfolio_id": t.portfolio_id, "decision_id": t.decision_id, "symbol": t.symbol, "action": t.action, "quantity": t.quantity,
         "price": t.price, "gross_value": t.gross_value, "total_costs": t.total_costs,
         "cost_breakdown": t.cost_breakdown_json, "net_cash_impact": t.net_cash_impact,
         "timestamp": t.timestamp.isoformat() if t.timestamp else None,
         "exchange": t.exchange, "currency": t.currency, "price_local": t.price_local, "fx_rate_to_inr": t.fx_rate_to_inr,
+        "verdict": decision.verdict if decision else None,
+        "directional_confidence": decision.directional_confidence if decision else None,
+        "reasoning": decision.consensus_reasoning if decision else None,
     }
 
 
@@ -218,7 +221,9 @@ def list_trades(limit: int = 200, current_session_only: bool = False, db: Sessio
         portfolio = execution_engine.get_active_portfolio(db)
         query = query.filter_by(portfolio_id=portfolio.id)
     trades = query.order_by(Trade.timestamp.desc()).limit(limit).all()
-    return [_trade_dict(t) for t in trades]
+    decision_ids = {t.decision_id for t in trades if t.decision_id is not None}
+    decisions_by_id = {d.id: d for d in db.query(Decision).filter(Decision.id.in_(decision_ids)).all()} if decision_ids else {}
+    return [_trade_dict(t, decisions_by_id.get(t.decision_id)) for t in trades]
 
 
 @app.get("/market/chart/{symbol}")
