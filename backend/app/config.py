@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     # execution would have. Raise this if your API tier comfortably supports it.
     max_parallel_agents: int = 4
 
+    # How many symbols the Investment Planner analyzes per tick (see agents/planner.py).
+    # Each symbol runs the full 13-agent committee (~30-90s wall-clock), so this is the
+    # main lever on how fast a decision lands, not TICK_MINUTES - a tick can't finish
+    # faster than max_symbols_per_tick x (time per symbol), regardless of how often the
+    # scheduler fires. Lower = faster individual decisions, less breadth per tick (the
+    # watchlist still rotates fully over time, just in smaller batches).
+    max_symbols_per_tick: int = 1
+
     # Optional India macro inputs for the Macroeconomist Analyst's regime model
     # (GDP growth, CPI inflation, RBI repo rate). No free live feed for these is
     # wired up, so rather than fabricate numbers this is left unset by default -

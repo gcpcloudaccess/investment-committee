@@ -7,7 +7,7 @@ from __future__ import annotations
 
 
 class InvestmentPlanner:
-    def __init__(self, max_symbols_per_tick: int = 4) -> None:
+    def __init__(self, max_symbols_per_tick: int = 1) -> None:
         self.max_symbols_per_tick = max_symbols_per_tick
         self._cursor = 0
 

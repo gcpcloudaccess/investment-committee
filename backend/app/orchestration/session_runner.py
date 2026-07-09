@@ -36,7 +36,7 @@ class SessionRunner:
     def __init__(self) -> None:
         self.settings = get_settings()
         self.provider = MarketDataProvider(self.settings.data_mode)
-        self.planner = InvestmentPlanner()
+        self.planner = InvestmentPlanner(max_symbols_per_tick=self.settings.max_symbols_per_tick)
 
     def _current_exchange(self) -> Exchange | None:
         if self.settings.data_mode == "live":
