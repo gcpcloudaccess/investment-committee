@@ -28,7 +28,7 @@ At the end it prints two values — add them as **GitHub repo secrets** (Setting
 
 ## Then: push to `master`, or run it manually
 
-The workflow ([`.github/workflows/deploy-cloud-run.yml`](../.github/workflows/deploy-cloud-run.yml)) triggers on pushes touching `backend/`, `frontend/`, or `run_backend.py`, or manually via the Actions tab → "Deploy to Cloud Run" → **Run workflow**.
+The workflow ([`.github/workflows/deploy-cloud-run.yml`](../.github/workflows/deploy-cloud-run.yml)) triggers on **every push to `master`** (no path filter — even a docs-only change rebuilds and redeploys both images), or manually via the Actions tab → "Deploy to Cloud Run" → **Run workflow**.
 
 ## Things worth knowing about this setup
 
