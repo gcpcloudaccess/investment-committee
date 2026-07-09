@@ -74,11 +74,18 @@ jobs:
             MAX_SYMBOLS_PER_TICK=1
             RISK_TOLERANCE=moderate
             MAX_PARALLEL_AGENTS=4
-            WATCHLIST=RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,LT.NS,SBIN.NS,ITC.NS,BHARTIARTL.NS,AXISBANK.NS,KOTAKBANK.NS,MARUTI.NS,SUNPHARMA.NS,TITAN.NS,ASIANPAINT.NS,BAJFINANCE.NS,HCLTECH.NS,WIPRO.NS
+          # WATCHLIST intentionally omitted - a comma-separated value here gets
+          # mangled by gcloud's own env-var-list parser (which also splits on
+          # commas), turning it into a pile of garbage single-symbol env vars.
+          # backend/app/config.py's default already has the full 18-symbol list.
           secrets: |
             ANTHROPIC_API_KEY=anthropic-api-key:latest
-            OPENAI_API_KEY=openai-api-key:latest
-            NEWSAPI_KEY=newsapi-key:latest
+          # OPENAI_API_KEY / NEWSAPI_KEY omitted - both secrets exist but have
+          # zero versions (never actually populated), and Cloud Run refuses to
+          # deploy with a secret reference that has no version to resolve.
+          # Both are optional in the app (falls back to Anthropic-only / free
+          # RSS news). Add them back here once real values are stored:
+          #   printf '%s' "<key>" | gcloud secrets versions add openai-api-key --data-file=-
 
       # ---------------------------------------------------------------- frontend
       - name: Build frontend image

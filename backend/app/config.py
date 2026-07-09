@@ -22,7 +22,11 @@ class Settings(BaseSettings):
     leverage: float = 2.0
     session_hours: float = 4.0
     tick_minutes: int = 10
-    watchlist: str = "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,LT.NS,SBIN.NS,ITC.NS"
+    watchlist: str = (
+        "RELIANCE.NS,TCS.NS,HDFCBANK.NS,INFY.NS,ICICIBANK.NS,LT.NS,SBIN.NS,ITC.NS,"
+        "BHARTIARTL.NS,AXISBANK.NS,KOTAKBANK.NS,MARUTI.NS,SUNPHARMA.NS,TITAN.NS,"
+        "ASIANPAINT.NS,BAJFINANCE.NS,HCLTECH.NS,WIPRO.NS"
+    )
 
     # In live mode, the session runner automatically trades whichever of NSE/SGX/LSE/NYSE
     # is currently open (see app/data/exchanges.py) and rolls over to the next one as
