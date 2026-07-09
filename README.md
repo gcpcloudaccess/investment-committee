@@ -25,6 +25,7 @@ cp backend/.env.example backend/.env
 ```
 
 **Without an LLM key**, the app still runs fully — all indicator math, the consensus algorithm, position sizing, execution, and costs are pure Python and key-independent. Only the natural-language reasoning text degrades to a deterministic templated summary instead of an LLM-generated narrative. The Settings page and Dashboard both surface a warning if no key is configured.
+**Local LLM** We are using local LLMs using Ollama using the class app/llm/local_llm.py, just need to replace it with the live LLMs using the function get_local_llm_client along with the model name.
 
 ### Data mode
 
