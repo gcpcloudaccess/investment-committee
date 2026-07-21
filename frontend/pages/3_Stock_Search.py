@@ -19,7 +19,7 @@ with col2:
     run = st.button("Run Committee Analysis", type="primary", width="stretch")
 
 if run and symbol:
-    with st.spinner(f"Running the full committee (7 analysts + Debate Agent + 4 critics + trust-weighted consensus) on {symbol}..."):
+    with st.spinner(f"Running the full committee (9 analysts + Debate Agent + 4 critics + trust-weighted consensus) on {symbol}..."):
         result = post(f"/analyze/{symbol.strip()}")
 
     st.markdown(

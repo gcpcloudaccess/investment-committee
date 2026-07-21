@@ -3,6 +3,7 @@ network, no LLM key required."""
 
 from app.agents.analysts import ALGO_TIER, ALL_ANALYSTS, DRILLDOWN_TIER, MACRO_TIER
 from app.agents.analysts.algo_signal import AlgoSignalAnalyst
+from app.agents.analysts.astro import AstroAnalyst
 from app.agents.analysts.fundamental import FundamentalAnalyst
 from app.agents.analysts.geopolitical import GeopoliticalAnalyst
 from app.agents.analysts.macro import MacroAnalyst
@@ -16,7 +17,7 @@ from app.agents.base import AgentVote, AnalysisContext, historical_context_summa
 
 
 def test_tiers_partition_all_analysts_with_no_overlap():
-    assert set(MACRO_TIER) == {MacroAnalyst, SentimentAnalyst, GeopoliticalAnalyst, PolicyAnalyst}
+    assert set(MACRO_TIER) == {MacroAnalyst, SentimentAnalyst, GeopoliticalAnalyst, PolicyAnalyst, AstroAnalyst}
     assert set(DRILLDOWN_TIER) == {FundamentalAnalyst, TechnicalAnalyst, RiskAnalyst}
     assert set(ALGO_TIER) == {AlgoSignalAnalyst}
 

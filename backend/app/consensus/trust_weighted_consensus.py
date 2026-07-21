@@ -47,6 +47,11 @@ EXPERTISE_RELEVANCE: dict[str, float] = {
     "Macroeconomic Analyst": 0.5,
     "Macro Critic": 0.5,
     "Fundamental Analyst": 0.45,
+    # Deliberately the lowest of any analyst - a traditional/folklore-based
+    # heuristic (see app/agents/analysts/astro.py), not empirically validated
+    # like every other agent here. Kept low so it can only ever nudge the
+    # consensus, never drive it.
+    "Astrological Analyst": 0.2,
 }
 DEFAULT_EXPERTISE_RELEVANCE = 0.5
 
@@ -57,7 +62,7 @@ AGREEMENT_ADJ_MAX = 1.6
 
 # Verdict thresholds on the winning action's directional confidence share (0-100).
 # Calibrated against real multi-agent committee runs (not guessed): with 13
-# intentionally-diverse agents (8 analysts + debate + 4 critics), several
+# intentionally-diverse agents (9 analysts + debate + 4 critics), several
 # agents structurally default to HOLD as their "no strong objection" answer
 # under ambiguous evidence (e.g. the risk model returns HOLD for anything
 # above LOW risk). That makes HOLD win the plurality by sheer vote count even

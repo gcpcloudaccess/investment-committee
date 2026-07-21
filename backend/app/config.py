@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     max_parallel_agents: int = 4
 
     # How many symbols the Investment Planner analyzes per tick (see agents/planner.py).
-    # Each symbol runs the full 13-agent committee (~30-90s wall-clock), so this is the
+    # Each symbol runs the full 14-agent committee (~30-90s wall-clock), so this is the
     # main lever on how fast a decision lands, not TICK_MINUTES - a tick can't finish
     # faster than max_symbols_per_tick x (time per symbol), regardless of how often the
     # scheduler fires. Lower = faster individual decisions, less breadth per tick (the

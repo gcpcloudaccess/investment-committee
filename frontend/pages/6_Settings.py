@@ -91,7 +91,7 @@ st.markdown('<hr class="ic-divider">', unsafe_allow_html=True)
 st.subheader("Architecture Notes")
 st.markdown(
     """
-This build implements the full committee architecture (Investment Planner → 7 analyst agents → Debate Agent →
+This build implements the full committee architecture (Investment Planner → 9 analyst agents → Debate Agent →
 4-critic debate loop → trust-weighted directional consensus → portfolio decision → simulated execution → reporting)
 with a **lean, zero-Docker stack** suited for a hackathon environment:
 """

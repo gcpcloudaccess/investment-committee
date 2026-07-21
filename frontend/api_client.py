@@ -5,7 +5,7 @@ import streamlit as st
 
 BACKEND_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000")
 
-# A committee tick analyzes up to 4 symbols, each running ~13 agent LLM calls
+# A committee tick analyzes up to 4 symbols, each running ~14 agent LLM calls
 # (bounded to 4 concurrent) - this reliably takes 2-2.5 minutes in practice.
 # Keep a generous margin above that rather than the httpx default of a few
 # seconds, or "Run Tick Now" / "Stock Search" will time out mid-analysis.

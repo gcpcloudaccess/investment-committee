@@ -1,5 +1,5 @@
 """Debate Agent: sits between the analysts and the critics. Its job is to
-surface the strongest contradicting views among the 7 analyst votes and
+surface the strongest contradicting views among the 9 analyst votes and
 produce a synthesized read of how contested the picture actually is -
 matching the architecture diagram's "Debate Agent: Agents debate
 contradicting views" box in the Debate & Consensus layer.
